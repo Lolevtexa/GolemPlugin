@@ -20,39 +20,62 @@ public class GolemPlugin extends JavaPlugin {
             public void run() {
                 for (var world : Bukkit.getWorlds()) {
                     for (var golem : world.getEntitiesByClass(IronGolem.class)) {
-                        if (!(golem.getTarget() instanceof Player player)) continue;
+                        if (!(golem.getTarget() instanceof Player player))
+                            continue;
 
-                        double golemY = golem.getLocation().getY();
-                        double playerY = player.getLocation().getY();
-                        double heightDiff = playerY - golemY;
+                        Location gLoc = golem.getLocation();
+                        Location pLoc = player.getLocation();
 
-                        if (heightDiff >= 3 && golem.isOnGround()) {
-                            getLogger().info("Голем " + golem.getUniqueId() + " готовится прыгнуть к игроку " + player.getName()
-                                    + " (разница Y = " + heightDiff + ")");
+                        double dy = pLoc.getY() - gLoc.getY();
+                        double distance = gLoc.distance(pLoc);
+
+                        if (dy >= 3 && distance < 8 && golem.isOnGround()) {
+                            getLogger()
+                                    .info("Голем " + golem.getUniqueId() + " начинает строиться к " + player.getName()
+                                            + " (dy = " + dy + ", dist = " + distance + ")");
 
                             // Прыжок
                             Vector velocity = golem.getVelocity();
                             velocity.setY(0.42);
                             golem.setVelocity(velocity);
-                            getLogger().info("Голем прыгнул");
 
-                            // Отложенная установка блока
+                            // Пауза перед блоком
                             new BukkitRunnable() {
                                 @Override
                                 public void run() {
-                                    Location below = golem.getLocation().subtract(0, 1, 0).getBlock().getLocation();
+                                    Location base = golem.getLocation();
+                                    Location below = base.clone().subtract(0, 1, 0).getBlock().getLocation();
+
+                                    // Повернуть голову вниз
+                                    Location lookDown = base.clone();
+                                    lookDown.setYaw(base.getYaw());
+                                    lookDown.setPitch(80.0f);
+                                    golem.teleport(lookDown);
+
                                     if (below.getBlock().getType().isAir()) {
                                         below.getBlock().setType(Material.COBBLESTONE);
                                         getLogger().info("Голем поставил блок под себя");
                                     } else {
                                         getLogger().info("Под големом уже есть блок: " + below.getBlock().getType());
                                     }
+
+                                    // Вернуть взгляд через 6 тиков (~0.3 сек)
+                                    new BukkitRunnable() {
+                                        @Override
+                                        public void run() {
+                                            Location reset = golem.getLocation();
+                                            reset.setPitch(0f);
+                                            golem.teleport(reset);
+                                            getLogger().info("Голем вернул взгляд вперёд");
+                                        }
+                                    }.runTaskLater(GolemPlugin.this, 6L);
+
                                 }
-                            }.runTaskLater(GolemPlugin.this, 3L); // через 3 тика
+                            }.runTaskLater(GolemPlugin.this, 3L); // поставить блок через 3 тика
                         }
                     }
                 }
             }
-        }.runTaskTimer(this, 20L, 20L); // 1 раз в секунду
+        }.runTaskTimer(this, 20L, 10L); // запуск через 1 сек, затем каждые 10 тиков (0.5 сек)
     }
 }
