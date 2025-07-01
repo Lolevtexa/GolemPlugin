@@ -16,8 +16,8 @@ import java.util.UUID;
 public class GolemPlugin extends JavaPlugin {
 
     private static final double BUILD_DISTANCE = 4.0;
-    private static final int STUCK_TICKS_THRESHOLD = 60; // 2 секунды
-    private static final long BUILD_INTERVAL = 10L; // 0.5 секунды
+    private static final int STUCK_TICKS_THRESHOLD = 60;
+    private static final long BUILD_INTERVAL = 10L;
 
     private final Map<UUID, GolemState> golemStates = new HashMap<>();
 
@@ -41,8 +41,8 @@ public class GolemPlugin extends JavaPlugin {
                         Location pLoc = player.getLocation();
 
                         double dy = pLoc.getY() - gLoc.getY();
-                        Location playerXZ = player.getLocation().clone(); // обязательно clone()!
-                        playerXZ.setY(gLoc.getY()); // теперь это не нарушает оригинальный объект
+                        Location playerXZ = player.getLocation().clone();
+                        playerXZ.setY(gLoc.getY());
                         double dxz = gLoc.distance(playerXZ);
 
                         // Обновить состояние — двигался ли голем?
@@ -98,7 +98,7 @@ public class GolemPlugin extends JavaPlugin {
                     }
                 }
             }
-        }.runTaskTimer(this, 20L, BUILD_INTERVAL); // каждые 0.5 секунды
+        }.runTaskTimer(this, 20L, BUILD_INTERVAL);
     }
 
     private static class GolemState {
