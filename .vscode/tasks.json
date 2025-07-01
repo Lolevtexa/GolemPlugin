@@ -1,0 +1,32 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build and Deploy Plugin",
+            "type": "shell",
+            "command": "\"D:\\Stuff\\gradle-8.14.2\\bin\\gradle.bat\" build",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "Copy Plugin to Server",
+            "type": "shell",
+            "command": "cp",
+            "args": [
+                ".\\build\\libs\\GolemPlugin-1.0.jar",
+                "'C:\\Users\\cebak\\AppData\\Roaming\\.minecraft server\\без модов\\plugins\\'"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        }
+    ]
+}

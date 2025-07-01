@@ -1,0 +1,4 @@
+name: GolemPlugin
+version: 1.0
+main: me.vsevolod.GolemPlugin
+api-version: 1.21
