@@ -9,7 +9,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public class GolemPlugin extends JavaPlugin {
+
+    private static final double BUILD_DISTANCE = 4.0;
+    private static final int STUCK_TICKS_THRESHOLD = 60; // 2 секунды
+    private static final long BUILD_INTERVAL = 10L; // 0.5 секунды
+
+    private final Map<UUID, GolemState> golemStates = new HashMap<>();
 
     @Override
     public void onEnable() {
@@ -20,6 +30,10 @@ public class GolemPlugin extends JavaPlugin {
             public void run() {
                 for (var world : Bukkit.getWorlds()) {
                     for (var golem : world.getEntitiesByClass(IronGolem.class)) {
+
+                        UUID id = golem.getUniqueId();
+                        GolemState state = golemStates.computeIfAbsent(id, k -> new GolemState(golem.getLocation()));
+
                         if (!(golem.getTarget() instanceof Player player))
                             continue;
 
@@ -27,19 +41,31 @@ public class GolemPlugin extends JavaPlugin {
                         Location pLoc = player.getLocation();
 
                         double dy = pLoc.getY() - gLoc.getY();
-                        double distance = gLoc.distance(pLoc);
+                        Location playerXZ = player.getLocation().clone(); // обязательно clone()!
+                        playerXZ.setY(gLoc.getY()); // теперь это не нарушает оригинальный объект
+                        double dxz = gLoc.distance(playerXZ);
 
-                        if (dy >= 3 && distance < 8 && golem.isOnGround()) {
-                            getLogger()
-                                    .info("Голем " + golem.getUniqueId() + " начинает строиться к " + player.getName()
-                                            + " (dy = " + dy + ", dist = " + distance + ")");
+                        // Обновить состояние — двигался ли голем?
+                        if (gLoc.distanceSquared(state.lastPosition) < 0.05) {
+                            state.ticksStationary += 1;
+                        } else {
+                            state.ticksStationary = 0;
+                            state.lastPosition = gLoc.clone();
+                        }
+
+                        boolean closeEnough = dxz < BUILD_DISTANCE;
+                        boolean stuck = state.ticksStationary >= STUCK_TICKS_THRESHOLD;
+
+                        if (dy >= 3 && golem.isOnGround() && (closeEnough || stuck)) {
+                            getLogger().info("Голем " + id + " строится (dy = " + dy + ", dxz = " + dxz + ", stuck = "
+                                    + stuck + ")");
 
                             // Прыжок
                             Vector velocity = golem.getVelocity();
                             velocity.setY(0.42);
                             golem.setVelocity(velocity);
 
-                            // Пауза перед блоком
+                            // Задержка перед установкой блока
                             new BukkitRunnable() {
                                 @Override
                                 public void run() {
@@ -54,28 +80,34 @@ public class GolemPlugin extends JavaPlugin {
 
                                     if (below.getBlock().getType().isAir()) {
                                         below.getBlock().setType(Material.COBBLESTONE);
-                                        getLogger().info("Голем поставил блок под себя");
-                                    } else {
-                                        getLogger().info("Под големом уже есть блок: " + below.getBlock().getType());
+                                        getLogger().info("Голем поставил блок");
                                     }
 
-                                    // Вернуть взгляд через 6 тиков (~0.3 сек)
+                                    // Вернуть взгляд вперёд
                                     new BukkitRunnable() {
                                         @Override
                                         public void run() {
                                             Location reset = golem.getLocation();
                                             reset.setPitch(0f);
                                             golem.teleport(reset);
-                                            getLogger().info("Голем вернул взгляд вперёд");
                                         }
                                     }.runTaskLater(GolemPlugin.this, 6L);
-
                                 }
-                            }.runTaskLater(GolemPlugin.this, 3L); // поставить блок через 3 тика
+                            }.runTaskLater(GolemPlugin.this, 3L);
                         }
                     }
                 }
             }
-        }.runTaskTimer(this, 20L, 10L); // запуск через 1 сек, затем каждые 10 тиков (0.5 сек)
+        }.runTaskTimer(this, 20L, BUILD_INTERVAL); // каждые 0.5 секунды
+    }
+
+    private static class GolemState {
+        Location lastPosition;
+        int ticksStationary;
+
+        public GolemState(Location initialPos) {
+            this.lastPosition = initialPos;
+            this.ticksStationary = 0;
+        }
     }
 }
